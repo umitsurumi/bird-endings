@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import QRCode from "qrcode";
 import { useEffect, useMemo, useState } from "react";
 import {
   allAnswered,
@@ -21,6 +22,7 @@ import styles from "./page.module.css";
 
 const DRAFT_KEY = "bird-ending:draft:v1";
 const RESULT_KEY = "bird-ending:result:v1";
+const SHARE_IMAGE_NAME = "bird-ending-result.png";
 
 type DraftRecord = {
   currentIndex: number;
@@ -191,19 +193,32 @@ export default function BirdTest() {
       return;
     }
 
-    const text = `我的鸟类转生结局是：${result.result}。你也来测测会转生成哪一种鸟。`;
+    const shareUrl = getShareUrl();
+    const title = "鸟类转生测试";
+    const text = `我的鸟类转生结局是：${result.result}。你也来测测会转生成哪一种鸟：${shareUrl}`;
 
     try {
-      if (navigator.share) {
-        await navigator.share({ title: "鸟类转生测试", text });
+      setStatusOverride("正在生成分享图");
+
+      const image = await createResultShareImage(result, shareUrl);
+      const file = new File([image], SHARE_IMAGE_NAME, { type: "image/png" });
+
+      if (navigator.share && canShareFiles(file)) {
+        await navigator.share({ files: [file], title, text, url: shareUrl });
         setStatusOverride("已打开分享");
         return;
       }
 
-      await navigator.clipboard.writeText(text);
-      setStatusOverride("结果已复制");
-    } catch {
-      setStatusOverride("分享已取消");
+      downloadBlob(image, SHARE_IMAGE_NAME);
+      await writeClipboardText(text);
+      setStatusOverride("分享图已下载，链接已复制");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setStatusOverride("分享已取消");
+        return;
+      }
+
+      setStatusOverride("分享图生成失败");
     }
   }
 
@@ -607,6 +622,273 @@ function getClarityMessage(result: CalculatedResult) {
 
 function formatDistance(value: number) {
   return Number.isFinite(value) ? value.toFixed(1) : "-";
+}
+
+function getShareUrl() {
+  const url = new URL(window.location.href);
+  url.hash = "";
+  return url.toString();
+}
+
+function canShareFiles(file: File) {
+  return (
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [file] })
+  );
+}
+
+async function createResultShareImage(result: StoredResult, shareUrl: string) {
+  const copy = BIRD_RESULTS[result.result];
+  const canvas = document.createElement("canvas");
+  const width = 1080;
+  const height = 1440;
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Canvas is not supported.");
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  ctx.fillStyle = "#f7f4ec";
+  ctx.fillRect(0, 0, width, height);
+  drawPosterTexture(ctx, width, height);
+
+  ctx.fillStyle = "#17211f";
+  ctx.fillRect(58, 58, 482, 644);
+
+  if (copy.imageSrc) {
+    try {
+      const birdImage = await loadCanvasImage(copy.imageSrc);
+      drawCoverImage(ctx, birdImage, 72, 72, 454, 616);
+    } catch {
+      drawPosterBirdFallback(ctx, 72, 72, 454, 616);
+    }
+  } else {
+    drawPosterBirdFallback(ctx, 72, 72, 454, 616);
+  }
+
+  ctx.fillStyle = "#194c49";
+  ctx.font = "900 34px serif";
+  ctx.fillText("bird-ending", 602, 118);
+
+  ctx.fillStyle = "#b73743";
+  ctx.font = "900 40px sans-serif";
+  ctx.fillText(copy.tag, 602, 188);
+
+  ctx.fillStyle = "#17211f";
+  ctx.font = "900 112px sans-serif";
+  drawWrappedText(ctx, result.result, 602, 296, 360, 122, 2);
+
+  ctx.fillStyle = "rgba(23, 33, 31, 0.68)";
+  ctx.font = "700 34px sans-serif";
+  drawWrappedText(
+    ctx,
+    result.isEasterEgg ? "你触发了隐藏结局" : getClarityMessage(result),
+    602,
+    492,
+    340,
+    52,
+    3,
+  );
+
+  const secondShadow = result.isEasterEgg
+    ? null
+    : `你身上还藏着「${result.secondRegularResult}」的影子。`;
+
+  drawRoundedRect(ctx, 70, 770, 940, 292, 18, "#ffffff");
+  ctx.fillStyle = "rgba(23, 33, 31, 0.78)";
+  ctx.font = "700 34px sans-serif";
+  drawWrappedText(ctx, copy.text, 112, 840, 856, 58, secondShadow ? 3 : 4);
+
+  if (secondShadow) {
+    ctx.fillStyle = "#194c49";
+    ctx.font = "900 30px sans-serif";
+    drawWrappedText(ctx, secondShadow, 112, 1018, 856, 42, 1);
+  }
+
+  const qrDataUrl = await QRCode.toDataURL(shareUrl, {
+    color: { dark: "#17211f", light: "#ffffff" },
+    errorCorrectionLevel: "M",
+    margin: 1,
+    width: 230,
+  });
+  const qrImage = await loadCanvasImage(qrDataUrl);
+
+  drawRoundedRect(ctx, 70, 1122, 940, 236, 18, "#ffffff");
+  ctx.drawImage(qrImage, 112, 1160, 164, 164);
+
+  ctx.fillStyle = "#17211f";
+  ctx.font = "900 42px sans-serif";
+  ctx.fillText("扫码测测你的鸟类转生结局", 320, 1194);
+
+  ctx.fillStyle = "rgba(23, 33, 31, 0.62)";
+  ctx.font = "700 28px sans-serif";
+  drawWrappedText(ctx, shareUrl, 320, 1242, 600, 40, 2);
+
+  return canvasToBlob(canvas);
+}
+
+function drawPosterTexture(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+) {
+  ctx.fillStyle = "rgba(215, 192, 90, 0.22)";
+  ctx.fillRect(0, 0, width, 18);
+  ctx.fillStyle = "rgba(142, 185, 199, 0.18)";
+  ctx.fillRect(0, height - 18, width, 18);
+  ctx.fillStyle = "rgba(183, 55, 67, 0.12)";
+  ctx.fillRect(width - 26, 0, 26, height);
+}
+
+function drawPosterBirdFallback(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  ctx.fillStyle = "#d7c05a";
+  ctx.fillRect(x, y, width, height);
+  ctx.fillStyle = "#194c49";
+  ctx.beginPath();
+  ctx.ellipse(x + width * 0.48, y + height * 0.55, 160, 96, -0.18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#8eb9c7";
+  ctx.beginPath();
+  ctx.ellipse(x + width * 0.44, y + height * 0.5, 88, 56, -0.58, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#b73743";
+  ctx.beginPath();
+  ctx.moveTo(x + width * 0.78, y + height * 0.46);
+  ctx.lineTo(x + width * 0.94, y + height * 0.52);
+  ctx.lineTo(x + width * 0.78, y + height * 0.58);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawCoverImage(
+  ctx: CanvasRenderingContext2D,
+  image: CanvasImageSource & { width: number; height: number },
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const sourceRatio = image.width / image.height;
+  const targetRatio = width / height;
+  const sourceWidth = sourceRatio > targetRatio ? image.height * targetRatio : image.width;
+  const sourceHeight = sourceRatio > targetRatio ? image.height : image.width / targetRatio;
+  const sourceX = (image.width - sourceWidth) / 2;
+  const sourceY = (image.height - sourceHeight) / 2;
+
+  ctx.drawImage(
+    image,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    x,
+    y,
+    width,
+    height,
+  );
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+  fill: string,
+) {
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, radius);
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+function drawWrappedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines: number,
+) {
+  const lines: string[] = [];
+  let line = "";
+
+  Array.from(text).forEach((char) => {
+    const nextLine = `${line}${char}`;
+
+    if (ctx.measureText(nextLine).width > maxWidth && line) {
+      lines.push(line);
+      line = char;
+      return;
+    }
+
+    line = nextLine;
+  });
+
+  if (line) {
+    lines.push(line);
+  }
+
+  lines.slice(0, maxLines).forEach((item, index) => {
+    const lineText =
+      index === maxLines - 1 && lines.length > maxLines
+        ? `${item.slice(0, Math.max(0, item.length - 1))}...`
+        : item;
+    ctx.fillText(lineText, x, y + index * lineHeight);
+  });
+}
+
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Could not create image blob."));
+        return;
+      }
+
+      resolve(blob);
+    }, "image/png");
+  });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function writeClipboardText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    return;
+  }
 }
 
 function writeDraft(currentIndex: number, answers: AnswerMap) {
