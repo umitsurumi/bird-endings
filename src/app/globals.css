@@ -1,0 +1,55 @@
+:root {
+  --ink: #17211f;
+  --paper: #f7f4ec;
+  --moss: #194c49;
+  --reed: #d7c05a;
+  --berry: #b73743;
+  --sky: #8eb9c7;
+  --white: #fffdf8;
+  --line: rgb(23 33 31 / 12%);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  letter-spacing: 0;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    linear-gradient(115deg, rgb(215 192 90 / 18%), transparent 32rem),
+    radial-gradient(circle at 94% 10%, rgb(142 185 199 / 34%), transparent 26rem),
+    var(--paper);
+  color: var(--ink);
+  font-family:
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    "Source Han Sans SC",
+    "Noto Sans CJK SC",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+}
+
+img {
+  max-width: 100%;
+}
