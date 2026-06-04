@@ -72,12 +72,12 @@ export const DIMENSION_DESCRIPTIONS: Record<Dimension, string> = {
 };
 
 export const RANGES: Record<Dimension, { min: number; max: number }> = {
-  S: { min: -2, max: 15 },
-  M: { min: -1, max: 9 },
-  E: { min: -9, max: 15 },
-  A: { min: -4, max: 7 },
-  O: { min: -10, max: 14 },
-  X: { min: -14, max: 19 },
+  S: { min: 0, max: 8 },
+  M: { min: 0, max: 6 },
+  E: { min: -3, max: 8 },
+  A: { min: -2, max: 4 },
+  O: { min: -3, max: 6 },
+  X: { min: -4, max: 9 },
 };
 
 export const WEIGHTS: Record<Dimension, number> = {
@@ -343,7 +343,7 @@ export const BIRD_RESULTS: Record<BirdName, BirdResult> = {
     name: "蜂鸟",
     tag: "强迫症引擎结局",
     imageSrc: "/endings/016.png",
-    profile: { S: -2, M: 2, E: 0, A: 1, O: 2, X: 2 },
+    profile: { S: -2, M: 2, E: 0, A: 0, O: 2, X: 2 },
     text: "停不下来，根本停不下来！只要一秒钟不努力，你就会觉得要被时代抛弃了。你把自己活成了高帧率的微型马达，但实在撑不住的时候，也请给因为疯狂燃烧而快要爆炸的自己，稍微充一会电吧。",
   },
   乌鸦: {

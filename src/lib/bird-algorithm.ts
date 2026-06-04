@@ -181,9 +181,7 @@ export function calculateResult(
   const second = ranked[1];
   const distanceGap = second.distance - best.distance;
   const clarity = getClarity(best.distance, distanceGap);
-  const isEasterEgg =
-    rawScores.P >= 3 ||
-    (rawScores.P === 2 && isLowClarity(best.distance, distanceGap));
+  const isEasterEgg = rawScores.P === 4;
 
   return {
     result: isEasterEgg ? "鸽子" : best.bird,
