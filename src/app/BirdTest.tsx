@@ -9,6 +9,7 @@ import {
   type AnswerMap,
   type CalculatedResult,
   type Clarity,
+  type ResultKind,
 } from "@/lib/bird-algorithm";
 import {
   BIRD_RESULTS,
@@ -32,8 +33,14 @@ type DraftRecord = {
 
 type View = "home" | "quiz" | "result";
 
-type StoredResult = CalculatedResult & {
+type StoredResult = Omit<
+  CalculatedResult,
+  "kfcChecked" | "kfcTriggered" | "resultKind"
+> & {
+  kfcChecked?: boolean;
+  kfcTriggered?: boolean;
   isPreview?: boolean;
+  resultKind?: ResultKind;
 };
 
 type AppState = {
@@ -195,7 +202,7 @@ export default function BirdTest() {
 
     const shareUrl = getShareUrl();
     const title = "鸟类转生测试";
-    const text = `我的鸟类转生结局是：${result.result}。你也来测测会转生成哪一种鸟：${shareUrl}`;
+    const text = getShareText(result, shareUrl);
 
     try {
       setStatusOverride("正在生成分享图");
@@ -308,7 +315,7 @@ function HomeView({
     <>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.kicker}>12 题 / 6 维度 / 18 + 1 结局</p>
+          <p className={styles.kicker}>12 题 / 6 维度 / 18 + 2 结局</p>
           <h1>你会转生成哪一种鸟？</h1>
           <p>
             在稳定、远方、表达、边界、秩序和意义之间，找出你的鸟类结局。
@@ -335,7 +342,7 @@ function HomeView({
           <BirdMark />
           <div className={styles.metricsGrid}>
             <Metric value="18" label="常规结局" />
-            <Metric value="1" label="隐藏彩蛋" />
+            <Metric value="2" label="隐藏彩蛋" />
             <Metric value="6" label="隐藏维度" />
           </div>
         </div>
@@ -446,10 +453,23 @@ function ResultView({
   result: StoredResult;
 }) {
   const copy = BIRD_RESULTS[result.result];
-  const clarityLabel = result.isEasterEgg ? "彩蛋" : getClarityLabel(result.clarity);
-  const secondShadow = result.isEasterEgg
-    ? null
-    : `你身上还藏着「${result.secondRegularResult}」的影子。`;
+  const resultKind = getResultKind(result);
+  const isRegular = resultKind === "regular";
+  const secondShadow =
+    isRegular && result.secondRegularResult
+      ? `你身上还藏着「${result.secondRegularResult}」的影子。`
+      : null;
+  const resultMetrics = isRegular
+    ? [
+        { label: "清晰度", value: result.clarity ? getClarityLabel(result.clarity) : "-" },
+        { label: "彩蛋", value: "否" },
+        { label: "最近距离", value: formatDistance(result.bestDistance) },
+        { label: "距离差", value: formatDistance(result.distanceGap) },
+      ]
+    : [
+        { label: "类型", value: resultKind === "kfc" ? "KFC" : "鸽子" },
+        { label: "彩蛋", value: "是" },
+      ];
 
   return (
     <section className={styles.resultShell}>
@@ -463,17 +483,16 @@ function ResultView({
           src={copy.imageSrc}
         />
         <div className={styles.resultMetrics}>
-          <Metric value={clarityLabel} label="清晰度" />
-          <Metric value={result.isEasterEgg ? "是" : "否"} label="彩蛋" />
-          <Metric value={formatDistance(result.bestDistance)} label="最近距离" />
-          <Metric value={formatDistance(result.distanceGap)} label="距离差" />
+          {resultMetrics.map((metric) => (
+            <Metric key={metric.label} value={metric.value} label={metric.label} />
+          ))}
         </div>
       </aside>
 
       <article className={styles.resultCard}>
         <p className={styles.resultTag}>{copy.tag}</p>
         <p className={styles.resultClarity}>
-          {result.isEasterEgg ? "你触发了隐藏结局" : getClarityMessage(result)}
+          {getResultIntro(result)}
         </p>
         <h1>{result.result}</h1>
         <p className={styles.resultText}>{copy.text}</p>
@@ -490,7 +509,7 @@ function ResultView({
           </button>
         </div>
 
-        {!result.isEasterEgg && (
+        {isRegular && (
           <details className={styles.profilePanel}>
             <summary>维度画像</summary>
             <div className={styles.dimensionGrid}>
@@ -608,7 +627,43 @@ function getClarityLabel(clarity: Clarity) {
   return "低";
 }
 
-function getClarityMessage(result: CalculatedResult) {
+function getResultKind(result: StoredResult): ResultKind {
+  if (result.resultKind) {
+    return result.resultKind;
+  }
+
+  return result.isEasterEgg ? "pigeon" : "regular";
+}
+
+function getResultIntro(result: StoredResult) {
+  const resultKind = getResultKind(result);
+
+  if (resultKind === "kfc") {
+    return "你触发了疯狂星期四结局";
+  }
+
+  if (resultKind === "pigeon") {
+    return "你触发了隐藏结局";
+  }
+
+  return getClarityMessage(result);
+}
+
+function getShareText(result: StoredResult, shareUrl: string) {
+  const resultKind = getResultKind(result);
+
+  if (resultKind === "kfc") {
+    return `我触发了隐藏结局：疯狂星期四。你也来测测会转生成哪一种鸟：${shareUrl}`;
+  }
+
+  if (resultKind === "pigeon") {
+    return `我触发了隐藏结局：鸽子。你也来测测会转生成哪一种鸟：${shareUrl}`;
+  }
+
+  return `我的鸟类转生结局是：${result.result}。你也来测测会转生成哪一种鸟：${shareUrl}`;
+}
+
+function getClarityMessage(result: Pick<StoredResult, "clarity" | "result">) {
   if (result.clarity === "high") {
     return `你的结果非常明确：你转生成了${result.result}`;
   }
@@ -620,8 +675,10 @@ function getClarityMessage(result: CalculatedResult) {
   return `你的特质跨在几种鸟之间，但最终你转生成了${result.result}`;
 }
 
-function formatDistance(value: number) {
-  return Number.isFinite(value) ? value.toFixed(1) : "-";
+function formatDistance(value?: number) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toFixed(1)
+    : "-";
 }
 
 function getShareUrl() {
@@ -639,6 +696,8 @@ function canShareFiles(file: File) {
 
 async function createResultShareImage(result: StoredResult, shareUrl: string) {
   const copy = BIRD_RESULTS[result.result];
+  const resultKind = getResultKind(result);
+  const isRegular = resultKind === "regular";
   const canvas = document.createElement("canvas");
   const width = 1080;
   const height = 1440;
@@ -685,7 +744,7 @@ async function createResultShareImage(result: StoredResult, shareUrl: string) {
   ctx.font = "700 34px sans-serif";
   drawWrappedText(
     ctx,
-    result.isEasterEgg ? "你触发了隐藏结局" : getClarityMessage(result),
+    getResultIntro(result),
     602,
     492,
     340,
@@ -693,9 +752,10 @@ async function createResultShareImage(result: StoredResult, shareUrl: string) {
     3,
   );
 
-  const secondShadow = result.isEasterEgg
-    ? null
-    : `你身上还藏着「${result.secondRegularResult}」的影子。`;
+  const secondShadow =
+    isRegular && result.secondRegularResult
+      ? `你身上还藏着「${result.secondRegularResult}」的影子。`
+      : null;
 
   drawRoundedRect(ctx, 70, 770, 940, 292, 18, "#ffffff");
   ctx.fillStyle = "rgba(23, 33, 31, 0.78)";
@@ -950,7 +1010,12 @@ function isStoredResult(value: StoredResult | null): value is StoredResult {
   return Boolean(
     value &&
       typeof value.result === "string" &&
+      Object.hasOwn(BIRD_RESULTS, value.result) &&
       typeof value.isEasterEgg === "boolean" &&
+      (!value.resultKind ||
+        value.resultKind === "regular" ||
+        value.resultKind === "pigeon" ||
+        value.resultKind === "kfc") &&
       value.rawScores &&
       value.normalizedScores,
   );

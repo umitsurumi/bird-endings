@@ -16,6 +16,7 @@ import {
 
 export type AnswerMap = Partial<Record<string, OptionLabel>>;
 export type Clarity = "high" | "medium" | "low";
+export type ResultKind = "regular" | "pigeon" | "kfc";
 
 export type RankedBird = {
   bird: RegularBirdName;
@@ -26,18 +27,24 @@ export type RankedBird = {
 
 export type CalculatedResult = {
   result: BirdName;
+  resultKind: ResultKind;
   isEasterEgg: boolean;
-  bestRegularResult: RegularBirdName;
-  secondRegularResult: RegularBirdName;
-  bestDistance: number;
-  secondDistance: number;
-  distanceGap: number;
-  clarity: Clarity;
+  bestRegularResult?: RegularBirdName;
+  secondRegularResult?: RegularBirdName;
+  bestDistance?: number;
+  secondDistance?: number;
+  distanceGap?: number;
+  clarity?: Clarity;
   rawScores: Scores;
   normalizedScores: DimensionScores;
   answers: AnswerMap;
   submittedAt: string;
+  kfcChecked: boolean;
+  kfcTriggered: boolean;
 };
+
+const KFC_TRIGGER_RATE = 0.05;
+const BEIJING_TIME_ZONE = "Asia/Shanghai";
 
 const EMPTY_SCORES: Scores = {
   S: 0,
@@ -149,9 +156,26 @@ export function isLowClarity(bestDistance: number, distanceGap: number) {
 export function calculateResult(
   answers: AnswerMap,
   submittedAt = new Date().toISOString(),
+  randomValue = Math.random(),
 ): CalculatedResult {
   const rawScores = calculateRawScores(answers);
   const normalizedScores = normalizeScores(rawScores);
+  const kfcTriggered = shouldTriggerKfc(submittedAt, randomValue);
+
+  if (kfcTriggered) {
+    return {
+      result: "KFC",
+      resultKind: "kfc",
+      isEasterEgg: true,
+      rawScores,
+      normalizedScores,
+      answers,
+      submittedAt,
+      kfcChecked: true,
+      kfcTriggered: true,
+    };
+  }
+
   const ranked = rankBirds(normalizedScores);
   const best = ranked[0];
   const second = ranked[1];
@@ -163,6 +187,7 @@ export function calculateResult(
 
   return {
     result: isEasterEgg ? "鸽子" : best.bird,
+    resultKind: isEasterEgg ? "pigeon" : "regular",
     isEasterEgg,
     bestRegularResult: best.bird,
     secondRegularResult: second.bird,
@@ -174,7 +199,31 @@ export function calculateResult(
     normalizedScores,
     answers,
     submittedAt,
+    kfcChecked: true,
+    kfcTriggered: false,
   };
+}
+
+export function shouldTriggerKfc(
+  submittedAt: string,
+  randomValue = Math.random(),
+) {
+  return isBeijingThursday(submittedAt) && randomValue < KFC_TRIGGER_RATE;
+}
+
+export function isBeijingThursday(submittedAt: string) {
+  const date = new Date(submittedAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return (
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: BEIJING_TIME_ZONE,
+      weekday: "long",
+    }).format(date) === "Thursday"
+  );
 }
 
 export function allAnswered(answers: AnswerMap) {

@@ -39,9 +39,10 @@ export type BirdName =
   | "蜂鸟"
   | "乌鸦"
   | "银喉长尾山雀"
-  | "鸽子";
+  | "鸽子"
+  | "KFC";
 
-export type RegularBirdName = Exclude<BirdName, "鸽子">;
+export type RegularBirdName = Exclude<BirdName, "鸽子" | "KFC">;
 
 export type BirdResult = {
   name: BirdName;
@@ -365,10 +366,16 @@ export const BIRD_RESULTS: Record<BirdName, BirdResult> = {
     imageSrc: "/endings/019.png",
     text: "测试结果呢？被你咕了。你等会儿再看，先去干点别的吧。反正世界也不会因为你晚交一份答卷就毁灭，先放过自己，今天的事今天如果不做，明天还可以接着拖。",
   },
+  KFC: {
+    name: "KFC",
+    tag: "疯狂星期四结局",
+    imageSrc: "/endings/020.png",
+    text: "你认真剖析了自我，正期待系统为你复杂的灵魂匹配一只绝世好鸟……但这都不重要！因为今天是肯德基疯狂星期四！谁能 V 我 50？别测什么心理状态了，没有什么精神内耗是一顿炸鸡解决不了的，如果有，那就加个蛋挞！",
+  },
 };
 
 export const REGULAR_BIRD_NAMES = Object.values(BIRD_RESULTS)
-  .filter((result): result is BirdResult & { name: RegularBirdName; profile: DimensionScores } => result.name !== "鸽子")
+  .filter((result): result is BirdResult & { name: RegularBirdName; profile: DimensionScores } => Boolean(result.profile))
   .map((result) => result.name);
 
 export const BIRD_ORDER = Object.keys(BIRD_RESULTS) as BirdName[];
