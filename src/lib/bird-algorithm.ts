@@ -16,7 +16,7 @@ import {
 
 export type AnswerMap = Partial<Record<string, OptionLabel>>;
 export type Clarity = "high" | "medium" | "low";
-export type ResultKind = "regular" | "pigeon" | "kfc";
+export type ResultKind = "regular" | "pigeon" | "myna" | "kfc";
 
 export type RankedBird = {
   bird: RegularBirdName;
@@ -45,6 +45,7 @@ export type CalculatedResult = {
 
 const KFC_TRIGGER_RATE = 0.05;
 const BEIJING_TIME_ZONE = "Asia/Shanghai";
+const MYNA_TRIGGER_RUN_LENGTH = 8;
 
 const EMPTY_SCORES: Scores = {
   S: 0,
@@ -161,6 +162,7 @@ export function calculateResult(
   const rawScores = calculateRawScores(answers);
   const normalizedScores = normalizeScores(rawScores);
   const kfcTriggered = shouldTriggerKfc(submittedAt, randomValue);
+  const mynaTriggered = hasSameOptionRun(answers);
 
   if (kfcTriggered) {
     return {
@@ -173,6 +175,20 @@ export function calculateResult(
       submittedAt,
       kfcChecked: true,
       kfcTriggered: true,
+    };
+  }
+
+  if (mynaTriggered) {
+    return {
+      result: "鹩哥",
+      resultKind: "myna",
+      isEasterEgg: true,
+      rawScores,
+      normalizedScores,
+      answers,
+      submittedAt,
+      kfcChecked: true,
+      kfcTriggered: false,
     };
   }
 
@@ -226,6 +242,37 @@ export function isBeijingThursday(submittedAt: string) {
 
 export function allAnswered(answers: AnswerMap) {
   return QUESTIONS.every((question) => Boolean(answers[question.id]));
+}
+
+export function hasSameOptionRun(
+  answers: AnswerMap,
+  runLength = MYNA_TRIGGER_RUN_LENGTH,
+) {
+  let currentRun = 1;
+  let previous: OptionLabel | undefined;
+
+  for (const question of QUESTIONS) {
+    const selected = answers[question.id];
+
+    if (!selected) {
+      currentRun = 1;
+      previous = undefined;
+      continue;
+    }
+
+    if (selected === previous) {
+      currentRun += 1;
+
+      if (currentRun >= runLength) {
+        return true;
+      }
+    } else {
+      currentRun = 1;
+      previous = selected;
+    }
+  }
+
+  return false;
 }
 
 function compareRankedBirds(left: RankedBird, right: RankedBird) {

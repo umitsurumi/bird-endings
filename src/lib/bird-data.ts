@@ -39,10 +39,13 @@ export type BirdName =
   | "蜂鸟"
   | "乌鸦"
   | "银喉长尾山雀"
+  | "企鹅"
+  | "夜鹭"
   | "鸽子"
+  | "鹩哥"
   | "KFC";
 
-export type RegularBirdName = Exclude<BirdName, "鸽子" | "KFC">;
+export type RegularBirdName = Exclude<BirdName, "鸽子" | "鹩哥" | "KFC">;
 
 export type BirdResult = {
   name: BirdName;
@@ -108,6 +111,8 @@ export const FALLBACK_PRIORITY: RegularBirdName[] = [
   "蜂鸟",
   "乌鸦",
   "银喉长尾山雀",
+  "企鹅",
+  "夜鹭",
 ];
 
 export const QUESTIONS: Question[] = [
@@ -360,11 +365,31 @@ export const BIRD_RESULTS: Record<BirdName, BirdResult> = {
     profile: { S: 2, M: -2, E: -1, A: 2, O: 0, X: -2 },
     text: "别被你那无害又软萌的外表骗了。你虽然看起来像个精致小巧的纯良糯米团子，但只要有人敢越过你的底线，你反击起来比谁都野。最高级的攻击性，就是用最可爱的脸，干最狠的事。",
   },
+  企鹅: {
+    name: "企鹅",
+    tag: "滑水大师结局",
+    imageSrc: "/endings/021.png",
+    profile: { S: 2, M: 0, E: 2, A: -2, O: 0, X: -1 },
+    text: "外面的大环境再恶劣，寒风再刺骨，你也总能找到最省力的方式存活。没有别人能飞翔的翅膀也没关系，遇到过不去的坎儿，大不了往地上一趴，直接开摆滑水。记住，只要待在自己的舒适圈里，你比谁都游得快。",
+  },
+  夜鹭: {
+    name: "夜鹭",
+    tag: "挂机摸鱼结局",
+    imageSrc: "/endings/022.png",
+    profile: { S: 0, M: 0, E: -2, A: 1, O: 2, X: 1 },
+    text: "你早就领悟了人生的最高境界：只要我一动不动，麻烦就找不到我。别人焦虑内耗、满天乱飞的时候，你像一个夜间待机的 NPC，安静、隐蔽、但并没有真的离线。不鸣则已，一旦看准机会，绝对能精准叼走属于自己的那条小鱼。",
+  },
   鸽子: {
     name: "鸽子",
     tag: "咕咕咕结局",
     imageSrc: "/endings/019.png",
     text: "测试结果呢？被你咕了。你等会儿再看，先去干点别的吧。反正世界也不会因为你晚交一份答卷就毁灭，先放过自己，今天的事今天如果不做，明天还可以接着拖。",
+  },
+  鹩哥: {
+    name: "鹩哥",
+    tag: "复读机结局",
+    imageSrc: "/endings/023.png",
+    text: "你深谙人类社会的糊弄学法则，只要在合适的时机附和一句“俺也一样”，就能省去 99% 的社交内耗。你不是没有想法，只是懒得为每一句废话重新生成答案。既然这世界上绝大多数问题听起来都差不多，那做一只稳定输出的复读机，也算是一种高级生存策略。",
   },
   KFC: {
     name: "KFC",

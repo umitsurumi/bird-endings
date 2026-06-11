@@ -315,7 +315,7 @@ function HomeView({
     <>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.kicker}>12 题 / 6 维度 / 18 + 2 结局</p>
+          <p className={styles.kicker}>12 题 / 6 维度 / 20 + 3 结局</p>
           <h1>你会转生成哪一种鸟？</h1>
           <p>
             在稳定、远方、表达、边界、秩序和意义之间，找出你的鸟类结局。
@@ -341,8 +341,8 @@ function HomeView({
         <div className={styles.specimenPanel} aria-label="测试概览">
           <BirdMark />
           <div className={styles.metricsGrid}>
-            <Metric value="18" label="常规结局" />
-            <Metric value="2" label="隐藏彩蛋" />
+            <Metric value="20" label="常规结局" />
+            <Metric value="3" label="隐藏结局" />
             <Metric value="6" label="隐藏维度" />
           </div>
         </div>
@@ -467,7 +467,7 @@ function ResultView({
         { label: "距离差", value: formatDistance(result.distanceGap) },
       ]
     : [
-        { label: "类型", value: resultKind === "kfc" ? "KFC" : "鸽子" },
+        { label: "类型", value: getEasterMetricLabel(resultKind) },
         { label: "彩蛋", value: "是" },
       ];
 
@@ -646,6 +646,10 @@ function getResultIntro(result: StoredResult) {
     return "你触发了隐藏结局";
   }
 
+  if (resultKind === "myna") {
+    return "你触发了复读机结局";
+  }
+
   return getClarityMessage(result);
 }
 
@@ -660,7 +664,23 @@ function getShareText(result: StoredResult, shareUrl: string) {
     return `我触发了隐藏结局：鸽子。你也来测测会转生成哪一种鸟：${shareUrl}`;
   }
 
+  if (resultKind === "myna") {
+    return `我触发了隐藏结局：鹩哥。你也来测测会转生成哪一种鸟：${shareUrl}`;
+  }
+
   return `我的鸟类转生结局是：${result.result}。你也来测测会转生成哪一种鸟：${shareUrl}`;
+}
+
+function getEasterMetricLabel(resultKind: ResultKind) {
+  if (resultKind === "kfc") {
+    return "KFC";
+  }
+
+  if (resultKind === "myna") {
+    return "鹩哥";
+  }
+
+  return "鸽子";
 }
 
 function getClarityMessage(result: Pick<StoredResult, "clarity" | "result">) {
@@ -1015,6 +1035,7 @@ function isStoredResult(value: StoredResult | null): value is StoredResult {
       (!value.resultKind ||
         value.resultKind === "regular" ||
         value.resultKind === "pigeon" ||
+        value.resultKind === "myna" ||
         value.resultKind === "kfc") &&
       value.rawScores &&
       value.normalizedScores,
